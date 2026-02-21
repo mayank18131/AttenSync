@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AttenSync - Sync your attendance. Secure your future.</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="themeToggle" class="theme-btn">
+            <i class="fas fa-moon"></i>
+            <span>Dark Mode</span>
+        </button>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-graduation-cap"></i>
+                <h1>AttenSync</h1>
+            </div>
+            <p class="tagline">Sync your attendance. Secure your future.</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="overall">
+                <i class="fas fa-chart-pie"></i>
+                Overall Attendance
+            </button>
+            <button class="tab-btn" data-tab="subject">
+                <i class="fas fa-book"></i>
+                Subject-wise
+            </button>
+        </div>
+
+        <!-- Overall Attendance Tab -->
+        <div id="overall" class="tab-content active">
+            <div class="calculator-card">
+                <h2><i class="fas fa-calculator"></i> Overall Attendance Calculator</h2>
+                
+                <div class="input-group">
+                    <label for="totalLectures">
+                        <i class="fas fa-chalkboard-teacher"></i> Total Lectures Conducted
+                    </label>
+                    <input type="number" id="totalLectures" placeholder="Enter total lectures" min="0">
+                    <span class="error-message" id="totalError"></span>
+                </div>
+
+                <div class="input-group">
+                    <label for="attendedLectures">
+                        <i class="fas fa-user-check"></i> Lectures Attended
+                    </label>
+                    <input type="number" id="attendedLectures" placeholder="Enter attended lectures" min="0">
+                    <span class="error-message" id="attendedError"></span>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="calculateOverall()">
+                        <i class="fas fa-calculator"></i> Calculate
+                    </button>
+                    <button class="btn btn-secondary" onclick="resetOverall()">
+                        <i class="fas fa-redo"></i> Reset
+                    </button>
+                </div>
+
+                <div id="overallResult" class="result-section" style="display: none;">
+                    <div class="result-header">
+                        <h3><i class="fas fa-poll"></i> Results</h3>
+                    </div>
+                    
+                    <div class="result-content">
+                        <div class="percentage-display">
+                            <div class="percentage-circle" id="overallCircle">
+                                <span id="overallPercentage">0%</span>
+                            </div>
+                            <div class="status-badge" id="overallStatus">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Eligible</span>
+                            </div>
+                        </div>
+
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <i class="fas fa-book-open"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Total Lectures</span>
+                                    <span class="stat-value" id="overallTotal">0</span>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <i class="fas fa-check-double"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Attended</span>
+                                    <span class="stat-value" id="overallAttended">0</span>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <i class="fas fa-times-circle"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Missed</span>
+                                    <span class="stat-value" id="overallMissed">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="overallRequired" class="required-section" style="display: none;">
+                            <div class="required-card">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <div class="required-info">
+                                    <h4>Need to Catch Up!</h4>
+                                    <p>Attend next <strong id="requiredLectures">0</strong> lectures continuously to reach 75%</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="overallMotivational" class="motivational-section" style="display: none;">
+                            <div class="motivational-card">
+                                <i class="fas fa-trophy"></i>
+                                <p id="motivationalMessage">Great job maintaining your attendance!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="overallPieChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Subject-wise Attendance Tab -->
+        <div id="subject" class="tab-content">
+            <div class="calculator-card">
+                <h2><i class="fas fa-book-reader"></i> Subject-wise Attendance Calculator</h2>
+                
+                <div class="subject-input-section">
+                    <div class="input-row">
+                        <div class="input-group flex-2">
+                            <label for="subjectName">
+                                <i class="fas fa-book"></i> Subject Name
+                            </label>
+                            <input type="text" id="subjectName" placeholder="e.g., Mathematics">
+                        </div>
+                        <div class="input-group">
+                            <label for="subjectTotal">
+                                <i class="fas fa-chalkboard"></i> Total
+                            </label>
+                            <input type="number" id="subjectTotal" placeholder="Total" min="0">
+                        </div>
+                        <div class="input-group">
+                            <label for="subjectAttended">
+                                <i class="fas fa-check"></i> Attended
+                            </label>
+                            <input type="number" id="subjectAttended" placeholder="Attended" min="0">
+                        </div>
+                    </div>
+                    
+                    <button class="btn btn-add" onclick="addSubject()">
+                        <i class="fas fa-plus-circle"></i> Add Subject
+                    </button>
+                    <span class="error-message" id="subjectError"></span>
+                </div>
+
+                <div class="subjects-list" id="subjectsList">
+                    <!-- Subjects will be added here dynamically -->
+                </div>
+
+                <div id="subjectResult" class="result-section" style="display: none;">
+                    <div class="result-header">
+                        <h3><i class="fas fa-chart-bar"></i> Overall Statistics</h3>
+                    </div>
+
+                    <div class="overall-subject-stats">
+                        <div class="percentage-display">
+                            <div class="percentage-circle" id="subjectOverallCircle">
+                                <span id="subjectOverallPercentage">0%</span>
+                            </div>
+                            <div class="status-badge" id="subjectOverallStatus">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Eligible</span>
+                            </div>
+                        </div>
+
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <i class="fas fa-book"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Total Subjects</span>
+                                    <span class="stat-value" id="totalSubjects">0</span>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <i class="fas fa-check-circle"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Eligible</span>
+                                    <span class="stat-value" id="eligibleSubjects">0</span>
+                                </div>
+                            </div>
+                            <div class="stat-card">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <div class="stat-info">
+                                    <span class="stat-label">Not Eligible</span>
+                                    <span class="stat-value" id="notEligibleSubjects">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="subjectPieChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-secondary" onclick="resetSubjects()">
+                        <i class="fas fa-trash-alt"></i> Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>Made by evil.M</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
