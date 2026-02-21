@@ -1,0 +1,2 @@
+# AttenSync
+Attendance calculator
