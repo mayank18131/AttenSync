@@ -26,6 +26,7 @@ function switchTab(index) {
 function resetTool1() {
     document.getElementById('totalLectures').value = '';
     document.getElementById('attendedLectures').value = '';
+    document.getElementById('noAttendanceTotal').value = ''; 
     document.getElementById('overallResults').style.display = 'none';
     if (overallChart) {
         overallChart.destroy();
@@ -34,10 +35,17 @@ function resetTool1() {
 }
 
 function calculateOverallAttendance() {
-    const total = parseInt(document.getElementById('totalLectures').value) || 0;
-    const attended = parseInt(document.getElementById('attendedLectures').value) || 0;
+    const rawTotal = parseInt(document.getElementById('totalLectures').value) || 0;
+    let attended = parseInt(document.getElementById('attendedLectures').value) || 0;
+    const noAttendance = parseInt(document.getElementById('noAttendanceTotal').value) || 0;
+    
+    // Deduct "no attendance" lectures from the total
+    const total = Math.max(0, rawTotal - noAttendance);
     
     if (total === 0) return;
+    
+    // Sanity check to prevent negative missed classes if user inputs bad data
+    attended = Math.min(attended, total);
     
     const percentage = Math.min(100, Math.round((attended / total) * 100));
     const missed = total - attended;
@@ -53,7 +61,7 @@ function calculateOverallAttendance() {
     }
     
     document.getElementById('statsGrid').innerHTML = `
-        <div class="stat-card"><div class="stat-number">${total}</div><div>Total</div></div>
+        <div class="stat-card"><div class="stat-number">${total}</div><div>Total (Effective)</div></div>
         <div class="stat-card"><div class="stat-number" style="color: #4ade80">${attended}</div><div>Attended</div></div>
         <div class="stat-card"><div class="stat-number" style="color: #f87171">${missed}</div><div>Missed</div></div>
     `;
@@ -97,6 +105,7 @@ function resetTool2() {
     document.getElementById('subjectName').value = '';
     document.getElementById('subjectTotal').value = '';
     document.getElementById('subjectAttended').value = '';
+    document.getElementById('subjectNoAttendance').value = ''; 
     document.getElementById('subjectSummary').innerHTML = '';
     document.getElementById('subjectsList').innerHTML = '';
     if (subjectsChart) {
@@ -107,10 +116,17 @@ function resetTool2() {
 
 function addSubject() {
     const name = document.getElementById('subjectName').value.trim();
-    const total = parseInt(document.getElementById('subjectTotal').value) || 0;
-    const attended = parseInt(document.getElementById('subjectAttended').value) || 0;
+    const rawTotal = parseInt(document.getElementById('subjectTotal').value) || 0;
+    let attended = parseInt(document.getElementById('subjectAttended').value) || 0;
+    const noAttendance = parseInt(document.getElementById('subjectNoAttendance').value) || 0;
+    
+    // Deduct "no attendance" lectures from the total
+    const total = Math.max(0, rawTotal - noAttendance);
     
     if (!name || total === 0) return;
+    
+    // Sanity check
+    attended = Math.min(attended, total);
     
     const percentage = Math.min(100, Math.round((attended / total) * 100));
     const missed = total - attended;
@@ -120,9 +136,12 @@ function addSubject() {
     
     renderSubjects();
     updateSubjectSummary();
+    
+    // Clear inputs after adding
     document.getElementById('subjectName').value = '';
     document.getElementById('subjectTotal').value = '';
     document.getElementById('subjectAttended').value = '';
+    document.getElementById('subjectNoAttendance').value = '';
 }
 
 function renderSubjects() {
