@@ -15,7 +15,8 @@ body.light {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) fixed;
 }
 body.dark {
-    background: linear-gradient(135deg, #1f1c2c 0%, #928dab 100%) fixed;
+    /* Updated to a sleek modern navy blue gradient */
+    background: linear-gradient(135deg, #0a192f 0%, #172a45 100%) fixed;
 }
 
 /* Header Layout Setup */
@@ -300,7 +301,7 @@ button:hover {
     font-size: 14px;
     text-align: center;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
-    margin-top: auto; /* Natural layout engine pins this to the bottom */
+    margin-top: auto;
     width: 100%;
 }
 
@@ -316,7 +317,7 @@ button:hover {
         padding: 20px 15px; 
     }
     .brand-container {
-        padding-right: 40px; /* Prevents text from clipping under the absolute button */
+        padding-right: 40px; 
         padding-left: 40px;
     }
     .dark-toggle {
