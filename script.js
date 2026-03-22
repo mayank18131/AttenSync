@@ -1,559 +1,376 @@
-// AttenSync - JavaScript Logic
-// Main calculation and UI functionality
-
-// Global variables
-let overallPieChart = null;
-let subjectPieChart = null;
+let isDark = false;
 let subjects = [];
+let overallChart = null;
+let subjectsChart = null;
 
-// Theme toggle functionality
-const themeToggle = document.getElementById('themeToggle');
-const body = document.body;
+// Dark mode toggle
+function toggleDarkMode() {
+    isDark = !isDark;
+    document.body.className = isDark ? 'dark' : 'light';
+    document.querySelector('.dark-toggle i').className = isDark ? 'fas fa-sun' : 'fas fa-moon';
+}
 
-themeToggle.addEventListener('click', () => {
-    const currentTheme = body.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    
-    body.setAttribute('data-theme', newTheme);
-    
-    const icon = themeToggle.querySelector('i');
-    const text = themeToggle.querySelector('span');
-    
-    if (newTheme === 'dark') {
-        icon.className = 'fas fa-sun';
-        text.textContent = 'Light Mode';
-    } else {
-        icon.className = 'fas fa-moon';
-        text.textContent = 'Dark Mode';
-    }
-    
-    // Update charts for new theme
-    updateChartsTheme();
-});
-
-// Tab switching functionality
-const tabBtns = document.querySelectorAll('.tab-btn');
-const tabContents = document.querySelectorAll('.tab-content');
-
-tabBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-        const tabId = btn.getAttribute('data-tab');
-        
-        // Remove active class from all buttons and contents
-        tabBtns.forEach(b => b.classList.remove('active'));
-        tabContents.forEach(c => c.classList.remove('active'));
-        
-        // Add active class to clicked button and corresponding content
-        btn.classList.add('active');
-        document.getElementById(tabId).classList.add('active');
+// Navigation Tabs Logic
+function switchTab(index) {
+    // Hide all content areas
+    document.querySelectorAll('.content').forEach((el, i) => {
+        el.classList.toggle('active', i === index);
     });
-});
+    // Update button styling to show active state
+    document.querySelectorAll('.nav-tab').forEach((el, i) => {
+        el.classList.toggle('active', i === index);
+    });
+}
 
-// ============================================
-// OVERALL ATTENDANCE CALCULATOR
-// ============================================
+// Tool 1: Overall Attendance
+function resetTool1() {
+    document.getElementById('totalLectures').value = '';
+    document.getElementById('attendedLectures').value = '';
+    document.getElementById('overallResults').style.display = 'none';
+    if (overallChart) {
+        overallChart.destroy();
+        overallChart = null;
+    }
+}
 
-function calculateOverall() {
-    const totalLectures = parseInt(document.getElementById('totalLectures').value) || 0;
-    const attendedLectures = parseInt(document.getElementById('attendedLectures').value) || 0;
+function calculateOverallAttendance() {
+    const total = parseInt(document.getElementById('totalLectures').value) || 0;
+    const attended = parseInt(document.getElementById('attendedLectures').value) || 0;
     
-    // Clear previous errors
-    document.getElementById('totalError').textContent = '';
-    document.getElementById('attendedError').textContent = '';
+    if (total === 0) return;
     
-    // Validation
-    if (totalLectures <= 0) {
-        document.getElementById('totalError').textContent = 'Please enter valid total lectures';
-        return;
-    }
+    const percentage = Math.min(100, Math.round((attended / total) * 100));
+    const missed = total - attended;
     
-    if (attendedLectures < 0) {
-        document.getElementById('attendedError').textContent = 'Attended lectures cannot be negative';
-        return;
-    }
+    document.getElementById('percentageCircle').style.setProperty('--percentage', percentage * 3.6 + 'deg');
+    document.getElementById('percentageCircle').textContent = percentage + '%';
     
-    if (attendedLectures > totalLectures) {
-        document.getElementById('attendedError').textContent = 'Attended lectures cannot exceed total lectures';
-        return;
-    }
-    
-    // Calculate attendance percentage
-    const percentage = (attendedLectures / totalLectures) * 100;
-    const missedLectures = totalLectures - attendedLectures;
-    
-    // Show result section
-    document.getElementById('overallResult').style.display = 'block';
-    
-    // Update percentage display
-    document.getElementById('overallPercentage').textContent = percentage.toFixed(1) + '%';
-    
-    // Update stats
-    document.getElementById('overallTotal').textContent = totalLectures;
-    document.getElementById('overallAttended').textContent = attendedLectures;
-    document.getElementById('overallMissed').textContent = missedLectures;
-    
-    // Update status badge
-    const statusBadge = document.getElementById('overallStatus');
-    const requiredSection = document.getElementById('overallRequired');
-    const motivationalSection = document.getElementById('overallMotivational');
-    
+    const badge = document.getElementById('eligibilityBadge');
     if (percentage >= 75) {
-        statusBadge.className = 'status-badge eligible';
-        statusBadge.innerHTML = '<i class="fas fa-check-circle"></i><span>Eligible</span>';
-        requiredSection.style.display = 'none';
-        motivationalSection.style.display = 'block';
-        
-        // Motivational messages based on percentage
-        let message = '';
-        if (percentage >= 95) {
-            message = "Outstanding! You're a attendance superstar! 🌟";
-        } else if (percentage >= 90) {
-            message = "Excellent! Keep up the amazing work! 💪";
-        } else if (percentage >= 85) {
-            message = "Great job! Your consistency is impressive! 🎉";
-        } else if (percentage >= 80) {
-            message = "Well done! You're doing fantastic! 👍";
-        } else {
-            message = "Great job maintaining your attendance! Keep it up! 😊";
-        }
-        document.getElementById('motivationalMessage').textContent = message;
+        badge.innerHTML = '<span class="badge green"><i class="fas fa-check-circle"></i> Eligible</span>';
     } else {
-        statusBadge.className = 'status-badge not-eligible';
-        statusBadge.innerHTML = '<i class="fas fa-times-circle"></i><span>Not Eligible</span>';
-        requiredSection.style.display = 'block';
-        motivationalSection.style.display = 'none';
-        
-        // Calculate required lectures to reach 75%
-        const requiredLectures = calculateRequiredLectures(totalLectures, attendedLectures, 75);
-        document.getElementById('requiredLectures').textContent = requiredLectures;
+        badge.innerHTML = '<span class="badge red"><i class="fas fa-times-circle"></i> Not Eligible</span>';
     }
     
-    // Create/update pie chart
-    createOverallPieChart(attendedLectures, missedLectures);
-}
-
-function calculateRequiredLectures(total, attended, targetPercentage) {
-    // Mathematical formula: Find minimum X such that (Attended + X) / (Total + X) >= target/100
-    // (Attended + X) / (Total + X) >= target/100
-    // Attended + X >= (target/100) * (Total + X)
-    // Attended + X >= (target/100) * Total + (target/100) * X
-    // X - (target/100) * X >= (target/100) * Total - Attended
-    // X * (1 - target/100) >= (target/100) * Total - Attended
-    // X >= [(target/100) * Total - Attended] / (1 - target/100)
+    document.getElementById('statsGrid').innerHTML = `
+        <div class="stat-card"><div class="stat-number">${total}</div><div>Total</div></div>
+        <div class="stat-card"><div class="stat-number" style="color: #4ade80">${attended}</div><div>Attended</div></div>
+        <div class="stat-card"><div class="stat-number" style="color: #f87171">${missed}</div><div>Missed</div></div>
+    `;
     
-    const target = targetPercentage / 100;
-    const numerator = (target * total) - attended;
-    const denominator = 1 - target;
-    
-    const required = Math.ceil(numerator / denominator);
-    return Math.max(0, required);
-}
-
-function createOverallPieChart(attended, missed) {
-    const ctx = document.getElementById('overallPieChart').getContext('2d');
-    
-    // Destroy existing chart if it exists
-    if (overallPieChart) {
-        overallPieChart.destroy();
+    let advice = '';
+    if (percentage < 75) {
+        const neededConsecutive = (3 * total) - (4 * attended);
+        advice = `<div class="warning-box"><i class="fas fa-exclamation-triangle"></i> You need to attend <strong>${neededConsecutive}</strong> consecutive classes to become eligible!</div>`;
+    } else {
+        const canBunk = Math.floor((4 * attended - 3 * total) / 3);
+        advice = `<div class="success-box"><i class="fas fa-check-circle"></i> You can safely bunk <strong>${canBunk}</strong> more classes!</div>`;
     }
+    document.getElementById('smartAdvice').innerHTML = advice;
     
-    const isDarkMode = body.getAttribute('data-theme') === 'dark';
-    const textColor = isDarkMode ? '#dfe6e9' : '#2d3436';
-    
-    overallPieChart = new Chart(ctx, {
+    // Chart
+    const ctx = document.getElementById('overallChart').getContext('2d');
+    if (overallChart) overallChart.destroy();
+    overallChart = new Chart(ctx, {
         type: 'doughnut',
         data: {
             labels: ['Attended', 'Missed'],
             datasets: [{
                 data: [attended, missed],
-                backgroundColor: [
-                    'rgba(0, 184, 148, 0.8)',
-                    'rgba(225, 112, 85, 0.8)'
-                ],
-                borderColor: [
-                    'rgba(0, 184, 148, 1)',
-                    'rgba(225, 112, 85, 1)'
-                ],
-                borderWidth: 2,
-                hoverOffset: 10
+                backgroundColor: ['#4ade80', '#f87171'],
+                borderWidth: 0
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        color: textColor,
-                        padding: 20,
-                        font: {
-                            family: 'Poppins',
-                            size: 14
-                        }
-                    }
-                },
-                title: {
-                    display: true,
-                    text: 'Attendance Overview',
-                    color: textColor,
-                    font: {
-                        family: 'Poppins',
-                        size: 18,
-                        weight: '600'
-                    },
-                    padding: {
-                        bottom: 20
-                    }
-                }
-            },
-            animation: {
-                animateRotate: true,
-                animateScale: true
-            }
+            plugins: { legend: { labels: { color: 'white' } } }
         }
     });
+    
+    document.getElementById('overallResults').style.display = 'block';
 }
 
-function resetOverall() {
-    document.getElementById('totalLectures').value = '';
-    document.getElementById('attendedLectures').value = '';
-    document.getElementById('totalError').textContent = '';
-    document.getElementById('attendedError').textContent = '';
-    document.getElementById('overallResult').style.display = 'none';
-    
-    if (overallPieChart) {
-        overallPieChart.destroy();
-        overallPieChart = null;
-    }
-}
-
-// ============================================
-// SUBJECT-WISE ATTENDANCE CALCULATOR
-// ============================================
-
-function addSubject() {
-    const subjectName = document.getElementById('subjectName').value.trim();
-    const subjectTotal = parseInt(document.getElementById('subjectTotal').value) || 0;
-    const subjectAttended = parseInt(document.getElementById('subjectAttended').value) || 0;
-    
-    // Clear previous errors
-    document.getElementById('subjectError').textContent = '';
-    
-    // Validation
-    if (!subjectName) {
-        document.getElementById('subjectError').textContent = 'Please enter subject name';
-        return;
-    }
-    
-    if (subjectTotal <= 0) {
-        document.getElementById('subjectError').textContent = 'Please enter valid total lectures';
-        return;
-    }
-    
-    if (subjectAttended < 0) {
-        document.getElementById('subjectError').textContent = 'Attended lectures cannot be negative';
-        return;
-    }
-    
-    if (subjectAttended > subjectTotal) {
-        document.getElementById('subjectError').textContent = 'Attended lectures cannot exceed total';
-        return;
-    }
-    
-    // Check if subject already exists
-    if (subjects.some(s => s.name.toLowerCase() === subjectName.toLowerCase())) {
-        document.getElementById('subjectError').textContent = 'Subject already added';
-        return;
-    }
-    
-    // Add subject to array
-    const subject = {
-        id: Date.now(),
-        name: subjectName,
-        total: subjectTotal,
-        attended: subjectAttended,
-        percentage: (subjectAttended / subjectTotal) * 100
-    };
-    
-    subjects.push(subject);
-    
-    // Clear input fields
-    document.getElementById('subjectName').value = '';
-    document.getElementById('subjectTotal').value = '';
-    document.getElementById('subjectAttended').value = '';
-    
-    // Render subjects list
-    renderSubjects();
-    
-    // Calculate overall statistics
-    calculateSubjectOverall();
-}
-
-function renderSubjects() {
-    const container = document.getElementById('subjectsList');
-    
-    if (subjects.length === 0) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-book-open"></i>
-                <p>No subjects added yet. Add your first subject above!</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = subjects.map(subject => {
-        const percentage = subject.percentage.toFixed(1);
-        const isEligible = percentage >= 75;
-        const required = isEligible ? 0 : calculateRequiredLectures(subject.total, subject.attended, 75);
-        
-        return `
-            <div class="subject-item" id="subject-${subject.id}">
-                <div class="subject-info">
-                    <div class="subject-icon">
-                        <i class="fas fa-book"></i>
-                    </div>
-                    <div class="subject-details">
-                        <h4>${subject.name}</h4>
-                        <p>Total: ${subject.total} | Attended: ${subject.attended} | Missed: ${subject.total - subject.attended}</p>
-                        ${!isEligible ? `<p style="color: var(--warning-color); margin-top: 5px;">Need ${required} more lecture(s) for 75%</p>` : ''}
-                    </div>
-                </div>
-                <div class="subject-stats">
-                    <div class="subject-percentage">
-                        <div class="percentage">${percentage}%</div>
-                        <div class="label">Attendance</div>
-                    </div>
-                    <div class="subject-status ${isEligible ? 'eligible' : 'not-eligible'}">
-                        ${isEligible ? '<i class="fas fa-check"></i> Eligible' : '<i class="fas fa-times"></i> Not Eligible'}
-                    </div>
-                </div>
-                <button class="delete-btn" onclick="deleteSubject(${subject.id})">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </div>
-        `;
-    }).join('');
-}
-
-function deleteSubject(id) {
-    subjects = subjects.filter(s => s.id !== id);
-    renderSubjects();
-    calculateSubjectOverall();
-}
-
-function calculateSubjectOverall() {
-    if (subjects.length === 0) {
-        document.getElementById('subjectResult').style.display = 'none';
-        return;
-    }
-    
-    document.getElementById('subjectResult').style.display = 'block';
-    
-    // Calculate overall statistics
-    const totalLectures = subjects.reduce((sum, s) => sum + s.total, 0);
-    const totalAttended = subjects.reduce((sum, s) => sum + s.attended, 0);
-    const overallPercentage = (totalAttended / totalLectures) * 100;
-    
-    const eligibleCount = subjects.filter(s => s.percentage >= 75).length;
-    const notEligibleCount = subjects.length - eligibleCount;
-    
-    // Update overall display
-    document.getElementById('subjectOverallPercentage').textContent = overallPercentage.toFixed(1) + '%';
-    
-    const statusBadge = document.getElementById('subjectOverallStatus');
-    if (overallPercentage >= 75) {
-        statusBadge.className = 'status-badge eligible';
-        statusBadge.innerHTML = '<i class="fas fa-check-circle"></i><span>Eligible</span>';
-    } else {
-        statusBadge.className = 'status-badge not-eligible';
-        statusBadge.innerHTML = '<i class="fas fa-times-circle"></i><span>Not Eligible</span>';
-    }
-    
-    // Update stats
-    document.getElementById('totalSubjects').textContent = subjects.length;
-    document.getElementById('eligibleSubjects').textContent = eligibleCount;
-    document.getElementById('notEligibleSubjects').textContent = notEligibleCount;
-    
-    // Create/update pie chart
-    createSubjectPieChart(subjects);
-}
-
-function createSubjectPieChart(subjectsData) {
-    const ctx = document.getElementById('subjectPieChart').getContext('2d');
-    
-    // Destroy existing chart if it exists
-    if (subjectPieChart) {
-        subjectPieChart.destroy();
-    }
-    
-    const isDarkMode = body.getAttribute('data-theme') === 'dark';
-    const textColor = isDarkMode ? '#dfe6e9' : '#2d3436';
-    
-    // Prepare data for chart
-    const labels = subjectsData.map(s => s.name);
-    const percentages = subjectsData.map(s => s.percentage);
-    
-    // Color palette for subjects
-    const colors = [
-        'rgba(108, 92, 231, 0.8)',
-        'rgba(0, 184, 148, 0.8)',
-        'rgba(225, 112, 85, 0.8)',
-        'rgba(253, 203, 110, 0.8)',
-        'rgba(116, 185, 255, 0.8)',
-        'rgba(223, 249, 251, 0.8)',
-        'rgba(255, 159, 243, 0.8)',
-        'rgba(85, 239, 196, 0.8)'
-    ];
-    
-    subjectPieChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [{
-                label: 'Attendance Percentage',
-                data: percentages,
-                backgroundColor: percentages.map(p => p >= 75 ? 'rgba(0, 184, 148, 0.8)' : 'rgba(225, 112, 85, 0.8)'),
-                borderColor: percentages.map(p => p >= 75 ? 'rgba(0, 184, 148, 1)' : 'rgba(225, 112, 85, 1)'),
-                borderWidth: 2,
-                borderRadius: 10,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                title: {
-                    display: true,
-                    text: 'Subject-wise Attendance',
-                    color: textColor,
-                    font: {
-                        family: 'Poppins',
-                        size: 18,
-                        weight: '600'
-                    },
-                    padding: {
-                        bottom: 20
-                    }
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    titleFont: {
-                        family: 'Poppins',
-                        size: 14
-                    },
-                    bodyFont: {
-                        family: 'Poppins',
-                        size: 13
-                    },
-                    padding: 12,
-                    cornerRadius: 8,
-                    callbacks: {
-                        label: function(context) {
-                            const subject = subjectsData[context.dataIndex];
-                            const required = subject.percentage >= 75 ? 0 : 
-                                calculateRequiredLectures(subject.total, subject.attended, 75);
-                            let label = `Attendance: ${context.parsed.y.toFixed(1)}%`;
-                            if (required > 0) {
-                                label += ` (Need ${required} more for 75%)`;
-                            }
-                            return label;
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 100,
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)'
-                    },
-                    ticks: {
-                        color: textColor,
-                        font: {
-                            family: 'Poppins',
-                            size: 12
-                        },
-                        callback: function(value) {
-                            return value + '%';
-                        }
-                    }
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        color: textColor,
-                        font: {
-                            family: 'Poppins',
-                            size: 12
-                        }
-                    }
-                }
-            },
-            animation: {
-                duration: 1000,
-                easing: 'easeOutQuart'
-            }
-        }
-    });
-}
-
-function resetSubjects() {
+// Tool 2: Subjects
+function resetTool2() {
     subjects = [];
     document.getElementById('subjectName').value = '';
     document.getElementById('subjectTotal').value = '';
     document.getElementById('subjectAttended').value = '';
-    document.getElementById('subjectError').textContent = '';
-    document.getElementById('subjectResult').style.display = 'none';
-    renderSubjects();
-    
-    if (subjectPieChart) {
-        subjectPieChart.destroy();
-        subjectPieChart = null;
+    document.getElementById('subjectSummary').innerHTML = '';
+    document.getElementById('subjectsList').innerHTML = '';
+    if (subjectsChart) {
+        subjectsChart.destroy();
+        subjectsChart = null;
     }
 }
 
-// ============================================
-// THEME AND CHART UPDATES
-// ============================================
+function addSubject() {
+    const name = document.getElementById('subjectName').value.trim();
+    const total = parseInt(document.getElementById('subjectTotal').value) || 0;
+    const attended = parseInt(document.getElementById('subjectAttended').value) || 0;
+    
+    if (!name || total === 0) return;
+    
+    const percentage = Math.min(100, Math.round((attended / total) * 100));
+    const missed = total - attended;
+    const eligible = percentage >= 75;
+    
+    subjects.push({ name, total, attended, missed, percentage, eligible });
+    
+    renderSubjects();
+    updateSubjectSummary();
+    document.getElementById('subjectName').value = '';
+    document.getElementById('subjectTotal').value = '';
+    document.getElementById('subjectAttended').value = '';
+}
 
-function updateChartsTheme() {
-    // Recreate charts with new theme colors
-    if (document.getElementById('overallResult').style.display !== 'none') {
-        const totalLectures = parseInt(document.getElementById('totalLectures').value) || 0;
-        const attendedLectures = parseInt(document.getElementById('attendedLectures').value) || 0;
-        if (totalLectures > 0) {
-            createOverallPieChart(attendedLectures, totalLectures - attendedLectures);
-        }
-    }
+function renderSubjects() {
+    const list = document.getElementById('subjectsList');
+    list.innerHTML = subjects.map((sub, index) => `
+        <div class="subject-card">
+            <div>
+                <strong>${sub.name}</strong><br>
+                Total: ${sub.total}, Attended: ${sub.attended}, Missed: ${sub.missed}<br>
+                <span style="font-size: 24px; font-weight: bold;">${sub.percentage}%</span>
+                <span class="badge ${sub.eligible ? 'green' : 'red'}">${sub.eligible ? 'Eligible' : 'Not Eligible'}</span>
+            </div>
+            <button class="btn-secondary" onclick="removeSubject(${index})" style="background: rgba(248,113,113,0.5);"><i class="fas fa-trash"></i></button>
+        </div>
+    `).join('');
+}
+
+function removeSubject(index) {
+    subjects.splice(index, 1);
+    renderSubjects();
+    updateSubjectSummary();
+}
+
+function updateSubjectSummary() {
+    const totalSubs = subjects.length;
+    const eligibleSubs = subjects.filter(s => s.eligible).length;
+    document.getElementById('subjectSummary').innerHTML = `
+        <h3>Summary</h3>
+        Total Subjects: ${totalSubs} | Eligible: ${eligibleSubs} | Not Eligible: ${totalSubs - eligibleSubs}
+    `;
     
     if (subjects.length > 0) {
-        createSubjectPieChart(subjects);
+        const ctx = document.getElementById('subjectsChart').getContext('2d');
+        if (subjectsChart) subjectsChart.destroy();
+        subjectsChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: subjects.map(s => s.name),
+                datasets: [{
+                    label: 'Attendance %',
+                    data: subjects.map(s => s.percentage),
+                    backgroundColor: subjects.map(s => s.eligible ? '#4ade80' : '#f87171')
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { color: 'white' } },
+                    x: { ticks: { color: 'white' } }
+                },
+                plugins: { legend: { labels: { color: 'white' } } }
+            }
+        });
+    } else if (subjectsChart) {
+        subjectsChart.destroy();
+        subjectsChart = null;
     }
 }
 
-// ============================================
-// EVENT LISTENERS
-// ============================================
+// Tool 3: Total Lectures
+let lectureDates = [];
 
-// Allow Enter key to trigger calculations
-document.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        if (e.target.id === 'totalLectures' || e.target.id === 'attendedLectures') {
-            calculateOverall();
-        } else if (e.target.id === 'subjectAttended') {
-            addSubject();
+function generateLectureDates() {
+    const start = new Date(document.getElementById('startDate').value);
+    const end = new Date(document.getElementById('endDate').value);
+    const dayCheckboxes = document.querySelectorAll('#tool3 input[type="checkbox"][value]:checked');
+    const activeDays = Array.from(dayCheckboxes).map(cb => parseInt(cb.value));
+    
+    if (isNaN(start) || isNaN(end) || start > end || activeDays.length === 0) {
+        alert('Please enter valid dates and select at least one lecture day.');
+        return;
+    }
+    
+    lectureDates = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        if (activeDays.includes(d.getDay())) {
+            lectureDates.push(new Date(d));
         }
+    }
+    
+    const checkboxesContainer = document.getElementById('holidayCheckboxes');
+    checkboxesContainer.innerHTML = lectureDates.map((date, index) => `
+        <label style="display: block; margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+            <input type="checkbox" class="holiday-checkbox" data-index="${index}">
+            <span style="margin-left: 10px;">${date.toLocaleDateString('en-US', {weekday: 'short', year: 'numeric', month: 'short', day: 'numeric'})}</span>
+        </label>
+    `).join('');
+    
+    document.getElementById('holidayList').style.display = 'block';
+    document.getElementById('finalResults').style.display = 'none';
+}
+
+function calculateFinalLectures() {
+    const offCheckboxes = document.querySelectorAll('.holiday-checkbox:checked');
+    const offDatesCount = offCheckboxes.length;
+    const noAttendance = parseInt(document.getElementById('noAttendance').value) || 0;
+    const totalDates = lectureDates.length;
+    const offDays = offDatesCount + noAttendance;
+    const finalLectures = Math.max(0, totalDates - offDays);
+    
+    document.getElementById('totalLectureDates').textContent = totalDates;
+    document.getElementById('holidayCount').textContent = offDays;
+    document.getElementById('finalLectures').textContent = finalLectures;
+    document.getElementById('finalResults').style.display = 'block';
+}
+
+function resetTool3() {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('subjectName3').value = '';
+    document.getElementById('noAttendance').value = '0';
+    document.querySelectorAll('#tool3 input[type="checkbox"]').forEach(cb => cb.checked = false);
+    document.getElementById('holidayList').style.display = 'none';
+    document.getElementById('finalResults').style.display = 'none';
+    document.getElementById('holidayCheckboxes').innerHTML = '';
+}
+
+// Tool 4: Dream Goal
+function resetTool4() {
+    document.getElementById('totalSemester').value = '';
+    document.getElementById('conductedSoFar').value = '';
+    document.getElementById('currentlyAttended').value = '';
+    document.getElementById('dreamTarget').value = '75';
+    document.getElementById('dreamResults').style.display = 'none';
+}
+
+function calculateDreamGoal() {
+    const totalSemester = parseInt(document.getElementById('totalSemester').value) || 0;
+    const conductedSoFar = parseInt(document.getElementById('conductedSoFar').value) || 0;
+    const currentlyAttended = parseInt(document.getElementById('currentlyAttended').value) || 0;
+    const dreamTarget = parseFloat(document.getElementById('dreamTarget').value) || 75;
+    
+    const remaining = totalSemester - conductedSoFar;
+    if (remaining <= 0) {
+        document.getElementById('dreamAdvice').innerHTML = '<span style="color: #f87171">Semester lectures completed!</span>';
+        document.getElementById('dreamResults').style.display = 'block';
+        return;
+    }
+    
+    const targetAttended = Math.ceil((dreamTarget / 100) * totalSemester);
+    const remainingNeeded = Math.max(0, targetAttended - currentlyAttended);
+    const mustAttend = Math.ceil((remainingNeeded / remaining) * 100);
+    
+    if (remainingNeeded > remaining) {
+        document.getElementById('dreamAdvice').innerHTML = `<span style="color: #f87171">Impossible! You needed ${remainingNeeded - remaining} more attendances than remaining classes.</span>`;
+    } else {
+        document.getElementById('dreamAdvice').innerHTML = `<span style="color: #4ade80">Attend ${mustAttend}% of remaining ${remaining} classes (about ${remainingNeeded} classes).</span>`;
+    }
+    document.getElementById('dreamResults').style.display = 'block';
+}
+
+// Tool 5: Email Draft
+function setReason(reason) {
+    document.querySelectorAll('.btn-reason').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.background = 'rgba(255,255,255,0.2)';
+        btn.style.border = '1px solid rgba(255,255,255,0.3)';
+    });
+    event.target.classList.add('active');
+    event.target.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+    event.target.style.border = 'none';
+    
+    const details = document.getElementById('additionalDetails');
+    const label = document.getElementById('additionalLabel');
+    if (reason === 'custom') {
+        details.style.display = 'block';
+        label.style.display = 'block';
+    } else {
+        details.style.display = 'none';
+        label.style.display = 'none';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const presentBtn = document.querySelector('.btn-reason[onclick="setReason(\'present\')"]');
+    if (presentBtn) {
+        presentBtn.classList.add('active');
+        presentBtn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+        presentBtn.style.border = 'none';
     }
 });
 
-// Initialize empty state for subjects
-renderSubjects();
+function resetTool5() {
+    document.querySelectorAll('#tool5 input, #tool5 textarea').forEach(el => {
+        if (el.type === 'checkbox' || el.type === 'radio') el.checked = el.defaultChecked;
+        else el.value = el.defaultValue || '';
+    });
+    document.getElementById('emailPreview').style.display = 'none';
+    document.getElementById('additionalDetails').style.display = 'none';
+    document.getElementById('additionalLabel').style.display = 'none';
+    
+    // Reset buttons back to default state safely without relying on event.target
+    const customBtn = document.querySelector('.btn-reason[onclick="setReason(\'custom\')"]');
+    const presentBtn = document.querySelector('.btn-reason[onclick="setReason(\'present\')"]');
+    
+    customBtn.classList.remove('active');
+    customBtn.style.background = 'rgba(255,255,255,0.2)';
+    customBtn.style.border = '1px solid rgba(255,255,255,0.3)';
+    
+    presentBtn.classList.add('active');
+    presentBtn.style.background = 'linear-gradient(135deg, #667eea, #764ba2)';
+    presentBtn.style.border = 'none';
+}
+
+function generateEmailDraft() {
+    const fields = {
+        fullName: document.getElementById('fullName').value,
+        enrollmentNo: document.getElementById('enrollmentNo').value,
+        rollNo: document.getElementById('rollNo').value,
+        course: document.getElementById('course').value,
+        division: document.getElementById('division').value,
+        facultyEmail: document.getElementById('facultyEmail').value,
+        courseSubject: document.getElementById('courseSubject').value,
+        lectureDate: document.getElementById('lectureDate').value,
+        reason: document.querySelector('.btn-reason.active').getAttribute('onclick').match(/'([^']+)'/)[1],
+        details: document.getElementById('additionalDetails').value
+    };
+    
+    if (!fields.facultyEmail || !fields.courseSubject || !fields.lectureDate) {
+        alert('Please fill faculty email, subject, and date.');
+        return;
+    }
+    
+    let reasonText = '';
+    if (fields.reason === 'present') {
+        reasonText = 'I was present during the lecture but was mistakenly marked absent.';
+    } else {
+        reasonText = fields.details || 'Please correct my attendance.';
+    }
+    
+    const body = `Dear Professor,
+
+I am ${fields.fullName} (Enrollment: ${fields.enrollmentNo}, Roll No: ${fields.rollNo}), a student of ${fields.course} ${fields.division}.
+
+I am writing to request a correction of my attendance for the ${fields.courseSubject} lecture on ${fields.lectureDate}.
+
+${reasonText}
+
+I would be grateful if you could update my attendance record accordingly.
+
+Thank you for your understanding.
+
+Best regards,
+${fields.fullName}
+${fields.course} ${fields.division}
+Enrollment: ${fields.enrollmentNo}`;
+
+    document.getElementById('draftBody').textContent = body;
+    document.getElementById('emailPreview').style.display = 'block';
+}
